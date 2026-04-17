@@ -1,4 +1,5 @@
 import { CalendarDays } from 'lucide-react'
+const API_URL = "https://cms-backend-bjd0.onrender.com";
 
 function Dashboard({ stats, upcoming }) {
   return (

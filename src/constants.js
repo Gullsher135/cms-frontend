@@ -1,4 +1,4 @@
-export const API_BASE = 'http://localhost:5000/api'
+export const API_BASE = 'https://cms-backend-bjd0.onrender.com/api'
 
 export const ROLE_ROUTES = {
   admin: ['/', '/admin', '/reception', '/doctor', '/lab', '/pharmacy', '/records'],

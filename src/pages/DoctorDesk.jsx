@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { API_BASE } from '../constants'
 import CaseTable from '../components/CaseTable'
+const API_URL = "https://cms-backend-bjd0.onrender.com";
+
 
 function DoctorDesk({ cases, onUpdate, session, labTests, medicines }) {
   const [filterDay, setFilterDay] = useState('')

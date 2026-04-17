@@ -1,6 +1,17 @@
 import { useState } from 'react'
 
-function AdminPortal({ doctors, doctorRequests, onApproveRequest, onRejectRequest, onAddDoctor, onUpdateDoctor, onDeleteDoctor }) {
+const API_URL = "https://cms-backend-bjd0.onrender.com";
+
+function AdminPortal({
+  doctors,
+  doctorRequests,
+  onApproveRequest,
+  onRejectRequest,
+  onAddDoctor,
+  onUpdateDoctor,
+  onDeleteDoctor
+}) {
+
   const [newDoctor, setNewDoctor] = useState({
     fullName: '',
     specialization: '',
@@ -8,7 +19,9 @@ function AdminPortal({ doctors, doctorRequests, onApproveRequest, onRejectReques
     password: '',
     consultFee: '',
   })
+
   const [selectedDoctorId, setSelectedDoctorId] = useState(null)
+
   const [editDoctor, setEditDoctor] = useState({
     name: '',
     specialization: '',
@@ -16,25 +29,29 @@ function AdminPortal({ doctors, doctorRequests, onApproveRequest, onRejectReques
     consultFee: '',
     password: '',
   })
+
   const [notification, setNotification] = useState(null)
 
   const showNotification = (type, message) => {
     setNotification({ type, message })
-    window.setTimeout(() => setNotification(null), 3000)
+    setTimeout(() => setNotification(null), 3000)
   }
 
-  const selectedDoctor = doctors.find((d) => d.id === selectedDoctorId)
+  // FIX: use _id instead of id
+  const selectedDoctor = doctors.find(d => d._id === selectedDoctorId)
 
   const selectDoctor = (doctor) => {
-    if (selectedDoctorId === doctor.id) {
+    if (selectedDoctorId === doctor._id) {
       setSelectedDoctorId(null)
       return
     }
-    setSelectedDoctorId(doctor.id)
+
+    setSelectedDoctorId(doctor._id)
+
     setEditDoctor({
-      name: doctor.name,
-      specialization: doctor.specialization,
-      username: doctor.username,
+      name: doctor.name || '',
+      specialization: doctor.specialization || '',
+      username: doctor.username || '',
       consultFee: doctor.consultFee || '',
       password: '',
     })
@@ -42,50 +59,59 @@ function AdminPortal({ doctors, doctorRequests, onApproveRequest, onRejectReques
 
   const handleDoctorUpdate = () => {
     if (!selectedDoctor) return
+
     const payload = {
       name: editDoctor.name,
       specialization: editDoctor.specialization,
       username: editDoctor.username,
       consultFee: editDoctor.consultFee || '2000',
     }
-    if (editDoctor.password) payload.password = editDoctor.password
-    onUpdateDoctor(selectedDoctor.id, payload)
+
+    if (editDoctor.password) {
+      payload.password = editDoctor.password
+    }
+
+    onUpdateDoctor(selectedDoctor._id, payload)
       .then(() => showNotification('success', 'Doctor updated successfully'))
-      .catch((err) => showNotification('error', `Update failed: ${err.message}`))
+      .catch((err) => showNotification('error', err.message))
   }
 
   const handleDoctorDelete = () => {
     if (!selectedDoctor) return
-    if (window.confirm(`Delete ${selectedDoctor.name}? This action cannot be undone.`)) {
-      onDeleteDoctor(selectedDoctor.id)
+
+    if (window.confirm(`Delete ${selectedDoctor.name}?`)) {
+      onDeleteDoctor(selectedDoctor._id)
         .then(() => {
           showNotification('success', 'Doctor deleted successfully')
           setSelectedDoctorId(null)
         })
-        .catch((err) => {
-          showNotification('error', `Delete failed: ${err.message}`)
-        })
+        .catch((err) => showNotification('error', err.message))
     }
   }
 
   return (
     <section className="form-panel">
+
       <h2>Admin Hospital Control</h2>
-      <p>Manage doctor onboarding, audit live providers, and edit or remove doctors from one place.</p>
+      <p>Manage doctors, requests and system access.</p>
+
       {notification && (
         <div className={`notification ${notification.type}`}>
           {notification.message}
         </div>
       )}
 
+      {/* DOCTORS LIST */}
       <h3>Registered Doctors</h3>
+
       <div className="doctor-card-list">
         {doctors.length ? doctors.map((doctor) => (
           <article
-            key={doctor.id}
-            className={`doctor-card ${selectedDoctorId === doctor.id ? 'active' : ''}`}
+            key={doctor._id}
+            className={`doctor-card ${selectedDoctorId === doctor._id ? 'active' : ''}`}
             onClick={() => selectDoctor(doctor)}
           >
+
             <div className="doctor-card-header">
               <div>
                 <h4>{doctor.name}</h4>
@@ -93,67 +119,148 @@ function AdminPortal({ doctors, doctorRequests, onApproveRequest, onRejectReques
               </div>
               <small>{doctor.username}</small>
             </div>
+
             <div className="doctor-card-meta">
-              <span>Fee: PKR {doctor.consultFee || '2000'}</span>
-              <span className="status-badge status-doctor">Doctor</span>
+              <span>Fee: PKR {doctor.consultFee || 2000}</span>
+              <span className="status-badge">Doctor</span>
             </div>
-            <p className="muted">Click this card to open the full-width management panel for this doctor.</p>
-            {selectedDoctorId === doctor.id && (
+
+            {selectedDoctorId === doctor._id && (
               <div className="doctor-card-body">
+
                 <div className="doctor-edit-form">
-                  <input placeholder="Doctor full name" value={editDoctor.name} onChange={(e) => setEditDoctor({ ...editDoctor, name: e.target.value })} />
-                  <input placeholder="Specialization" value={editDoctor.specialization} onChange={(e) => setEditDoctor({ ...editDoctor, specialization: e.target.value })} />
-                  <input placeholder="Username" value={editDoctor.username} onChange={(e) => setEditDoctor({ ...editDoctor, username: e.target.value })} />
-                  <input placeholder="Consulting fee" value={editDoctor.consultFee} onChange={(e) => setEditDoctor({ ...editDoctor, consultFee: e.target.value })} />
-                  <input placeholder="New password (leave blank to keep current)" value={editDoctor.password} onChange={(e) => setEditDoctor({ ...editDoctor, password: e.target.value })} />
+                  <input
+                    placeholder="Name"
+                    value={editDoctor.name}
+                    onChange={(e) =>
+                      setEditDoctor({ ...editDoctor, name: e.target.value })
+                    }
+                  />
+
+                  <input
+                    placeholder="Specialization"
+                    value={editDoctor.specialization}
+                    onChange={(e) =>
+                      setEditDoctor({ ...editDoctor, specialization: e.target.value })
+                    }
+                  />
+
+                  <input
+                    placeholder="Username"
+                    value={editDoctor.username}
+                    onChange={(e) =>
+                      setEditDoctor({ ...editDoctor, username: e.target.value })
+                    }
+                  />
+
+                  <input
+                    placeholder="Fee"
+                    value={editDoctor.consultFee}
+                    onChange={(e) =>
+                      setEditDoctor({ ...editDoctor, consultFee: e.target.value })
+                    }
+                  />
+
+                  <input
+                    placeholder="New Password"
+                    value={editDoctor.password}
+                    onChange={(e) =>
+                      setEditDoctor({ ...editDoctor, password: e.target.value })
+                    }
+                  />
                 </div>
+
                 <div className="doctor-card-actions">
-                  <button type="button" onClick={handleDoctorUpdate} disabled={!editDoctor.name || !editDoctor.specialization || !editDoctor.username}>
-                    Save Changes
+                  <button
+                    type="button"
+                    onClick={handleDoctorUpdate}
+                    disabled={!editDoctor.name || !editDoctor.specialization || !editDoctor.username}
+                  >
+                    Save
                   </button>
-                  <button type="button" className="secondary-btn" onClick={handleDoctorDelete}>
-                    Delete Doctor
+
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={handleDoctorDelete}
+                  >
+                    Delete
                   </button>
                 </div>
+
               </div>
             )}
+
           </article>
         )) : (
-          <p>No registered doctors yet.</p>
+          <p>No doctors found.</p>
         )}
       </div>
 
-      <h3>Pending Doctor Requests</h3>
-      <div className="table-wrap">
-        <table className="data-table">
-          <thead>
-            <tr><th>Name</th><th>Specialization</th><th>Username</th><th>Action</th></tr>
-          </thead>
-          <tbody>
-            {doctorRequests.length ? doctorRequests.map((r) => (
-              <tr key={r.id}>
-                <td>{r.fullName}</td>
-                <td>{r.specialization}</td>
-                <td>{r.preferredUsername}</td>
-                <td>
-                  <div className="table-actions">
-                    <button type="button" onClick={() => onApproveRequest(r.id)}>Approve</button>
-                    <button type="button" className="secondary-btn" onClick={() => onRejectRequest(r.id)}>Reject</button>
-                  </div>
-                </td>
-              </tr>
-            )) : <tr><td colSpan="4">No pending requests.</td></tr>}
-          </tbody>
-        </table>
-      </div>
-      <h3>Add Doctor Directly</h3>
+      {/* REQUESTS */}
+      <h3>Pending Requests</h3>
+
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Specialization</th>
+            <th>Username</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {doctorRequests.length ? doctorRequests.map((r) => (
+            <tr key={r._id}>
+              <td>{r.fullName}</td>
+              <td>{r.specialization}</td>
+              <td>{r.preferredUsername}</td>
+              <td>
+                <button onClick={() => onApproveRequest(r._id)}>Approve</button>
+                <button className="secondary-btn" onClick={() => onRejectRequest(r._id)}>
+                  Reject
+                </button>
+              </td>
+            </tr>
+          )) : (
+            <tr>
+              <td colSpan="4">No requests</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+
+      {/* ADD DOCTOR */}
+      <h3>Add Doctor</h3>
+
       <div className="form-grid">
-        <input placeholder="Doctor full name" value={newDoctor.fullName} onChange={(e) => setNewDoctor({ ...newDoctor, fullName: e.target.value })} />
-        <input placeholder="Specialization" value={newDoctor.specialization} onChange={(e) => setNewDoctor({ ...newDoctor, specialization: e.target.value })} />
-        <input placeholder="Username" value={newDoctor.username} onChange={(e) => setNewDoctor({ ...newDoctor, username: e.target.value })} />
-        <input placeholder="Password" value={newDoctor.password} onChange={(e) => setNewDoctor({ ...newDoctor, password: e.target.value })} />
-        <input placeholder="Consulting fee" value={newDoctor.consultFee} onChange={(e) => setNewDoctor({ ...newDoctor, consultFee: e.target.value })} />
+        <input placeholder="Name"
+          value={newDoctor.fullName}
+          onChange={(e) => setNewDoctor({ ...newDoctor, fullName: e.target.value })}
+        />
+
+        <input placeholder="Specialization"
+          value={newDoctor.specialization}
+          onChange={(e) => setNewDoctor({ ...newDoctor, specialization: e.target.value })}
+        />
+
+        <input placeholder="Username"
+          value={newDoctor.username}
+          onChange={(e) => setNewDoctor({ ...newDoctor, username: e.target.value })}
+        />
+
+        <input placeholder="Password"
+          value={newDoctor.password}
+          onChange={(e) => setNewDoctor({ ...newDoctor, password: e.target.value })}
+        />
+
+        <input placeholder="Fee"
+          value={newDoctor.consultFee}
+          onChange={(e) => setNewDoctor({ ...newDoctor, consultFee: e.target.value })}
+        />
       </div>
+
       <button
         type="button"
         disabled={!newDoctor.fullName || !newDoctor.specialization || !newDoctor.username || !newDoctor.password}
@@ -164,17 +271,23 @@ function AdminPortal({ doctors, doctorRequests, onApproveRequest, onRejectReques
             username: newDoctor.username,
             password: newDoctor.password,
             consultFee: newDoctor.consultFee || '2000',
-          })
-            .then(() => {
-              showNotification('success', 'Doctor created successfully')
-              setNewDoctor({ fullName: '', specialization: '', username: '', password: '', consultFee: '' })
+          }).then(() => {
+            showNotification('success', 'Doctor added')
+            setNewDoctor({
+              fullName: '',
+              specialization: '',
+              username: '',
+              password: '',
+              consultFee: '',
             })
-            .catch((err) => showNotification('error', `Create failed: ${err.message}`))
+          }).catch(err => showNotification('error', err.message))
         }}
       >
-        Create Doctor Portal
+        Create Doctor
       </button>
-      <p className="muted">Total active doctors: {doctors.length}</p>
+
+      <p>Total doctors: {doctors.length}</p>
+
     </section>
   )
 }
