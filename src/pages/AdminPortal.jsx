@@ -76,7 +76,7 @@ function AdminPortal({
       .catch((err) => showNotification('error', err.message))
   }
 
-  const handleDoctorDelete = (doctorId, doctorName) => {
+const handleDoctorDelete = (doctorId, doctorName) => {
   if (!doctorId) return
 
   if (window.confirm(`Delete ${doctorName}?`)) {
@@ -88,6 +88,7 @@ function AdminPortal({
       .catch((err) => showNotification('error', err.message))
   }
 }
+
 
 
   return (
@@ -183,7 +184,7 @@ function AdminPortal({
                   <button
                     type="button"
                     className="secondary-btn"
-                    onClick={handleDoctorDelete}
+                    onClick={() => handleDoctorDelete(doctor._id, doctor.name)}
                   >
                     Delete
                   </button>
