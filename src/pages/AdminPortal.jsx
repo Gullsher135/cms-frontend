@@ -76,18 +76,19 @@ function AdminPortal({
       .catch((err) => showNotification('error', err.message))
   }
 
-  const handleDoctorDelete = () => {
-    if (!selectedDoctor) return
+  const handleDoctorDelete = (doctorId, doctorName) => {
+  if (!doctorId) return
 
-    if (window.confirm(`Delete ${selectedDoctor.name}?`)) {
-      onDeleteDoctor(selectedDoctor._id)
-        .then(() => {
-          showNotification('success', 'Doctor deleted successfully')
-          setSelectedDoctorId(null)
-        })
-        .catch((err) => showNotification('error', err.message))
-    }
+  if (window.confirm(`Delete ${doctorName}?`)) {
+    onDeleteDoctor(doctorId)
+      .then(() => {
+        showNotification('success', 'Doctor deleted successfully')
+        setSelectedDoctorId(null)
+      })
+      .catch((err) => showNotification('error', err.message))
   }
+}
+
 
   return (
     <section className="form-panel">
