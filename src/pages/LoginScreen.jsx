@@ -20,7 +20,7 @@ function LoginScreen({ onLogin, error, onDoctorRequest }) {
         <input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
         <input placeholder="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
         {error && <small className="error-text">{error}</small>}
-        <button type="button" onClick={() => onLogin(username, password)}>Login</button>
+        <button type="button" onClick={() => onLogin(username, password)} className='login-btn'>Login</button>
         <button type="button" className="secondary-btn" onClick={() => setRequestMode((v) => !v)}>
           {requestMode ? 'Hide Doctor Registration' : 'New Doctor? Submit Registration Request'}
         </button>
