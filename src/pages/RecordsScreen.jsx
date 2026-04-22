@@ -14,6 +14,7 @@ function RecordsScreen({ cases, generateBill, getBills, doctors }) {
   const [existingBills, setExistingBills] = useState([])
   const [viewingBills, setViewingBills] = useState(null)
   const [previewBill, setPreviewBill] = useState(null)
+  const [loadingBill, setLoadingBill] = useState(false)  // prevent double-click
 
   const getBillServices = (bill) => {
     if (Array.isArray(bill.services) && bill.services.length) {
@@ -134,80 +135,94 @@ function RecordsScreen({ cases, generateBill, getBills, doctors }) {
       })
   }
 
-  const handleGenerateBill = (caseId, billType) => {
-    const caseData = cases.find(c => c._id === caseId)
-    if (!caseData) return
+  const handleGenerateBill = async (caseId, billType) => {
+    if (loadingBill) return  // prevent double-click
+    setLoadingBill(true)
 
-    const doctor = doctors.find(d => d._id === caseData.doctorId)
-    
-    let billData = {
-      caseId,
-      patientName: caseData.patientName,
-      doctorName: doctor ? doctor.name : 'Unknown Doctor',
-      doctorId: caseData.doctorId,
-      billType,
-      generatedBy: 'Records Desk',
-      generatedAt: new Date().toISOString()
-    }
-
-    if (billType === 'services') {
-      // Services bill: Individual lab tests and medicines
-      const services = []
-
-      // Add individual lab tests
-      if (caseData.recommendedTests?.length > 0) {
-        caseData.recommendedTests.forEach((test) => {
-          services.push({ name: test.name, amount: test.price || 0 })
-        })
+    try {
+      const caseData = cases.find(c => c._id === caseId)
+      if (!caseData) {
+        alert('Case not found')
+        return
       }
 
-      // Add individual medicines
-      if (caseData.prescriptions?.length > 0) {
-        caseData.prescriptions.forEach((med) => {
-          services.push({
-            name: `${med.name}${med.quantity ? ` (Qty: ${med.quantity})` : ''}`,
-            amount: (med.price || 0) * (med.quantity || 1),
+      // Find doctor – handles both _id and id fields
+      const doctor = doctors.find(d => 
+        d._id === caseData.doctorId || d.id === caseData.doctorId
+      )
+      const doctorName = doctor ? doctor.name : (caseData.doctorName || 'Unknown Doctor')
+      const consultFee = doctor ? (doctor.consultFee || 0) : 0
+
+      let billData = {
+        caseId,
+        patientName: caseData.patientName,
+        doctorName: doctorName,
+        doctorId: caseData.doctorId,
+        billType,
+        generatedBy: 'Records Desk',
+        generatedAt: new Date().toISOString()
+      }
+
+      if (billType === 'services') {
+        // Services bill: individual lab tests and medicines
+        const services = []
+        if (caseData.recommendedTests?.length > 0) {
+          caseData.recommendedTests.forEach((test) => {
+            services.push({ name: test.name, amount: test.price || 0 })
           })
-        })
-      }
+        }
+        if (caseData.prescriptions?.length > 0) {
+          caseData.prescriptions.forEach((med) => {
+            services.push({
+              name: `${med.name}${med.quantity ? ` (Qty: ${med.quantity})` : ''}`,
+              amount: (med.price || 0) * (med.quantity || 1),
+            })
+          })
+        }
+        billData.services = services
+        billData.totalAmount = services.reduce((sum, s) => sum + (s.amount || 0), 0)
+        billData.title = 'Services Bill'
 
-      billData.services = services
-      billData.totalAmount = services.reduce((sum, s) => sum + (s.amount || 0), 0)
-      billData.title = 'Services Bill'
+        const serviceDate = caseData.createdAt ? new Date(caseData.createdAt) : new Date()
+        billData.serviceDetails = {
+          date: serviceDate.toLocaleDateString(),
+          time: serviceDate.toLocaleTimeString(),
+          day: serviceDate.toLocaleDateString('en-US', { weekday: 'long' }),
+        }
+      } else if (billType === 'appointment') {
+        // Appointment bill: consultation fee
+        billData.services = [{ name: 'Consultation Fee', amount: consultFee }]
+        billData.totalAmount = consultFee
+        billData.title = 'Appointment Bill'
 
-      const serviceDate = caseData.createdAt ? new Date(caseData.createdAt) : new Date()
-      billData.serviceDetails = {
-        date: serviceDate.toLocaleDateString(),
-        time: serviceDate.toLocaleTimeString(),
-        day: serviceDate.toLocaleDateString('en-US', { weekday: 'long' }),
-      }
-    } else if (billType === 'appointment') {
-      // Appointment bill: Consultation fee with appointment details
-      billData.services = [
-        { name: 'Consultation Fee', amount: caseData.consultationFee || 0 }
-      ].filter(s => s.amount > 0)
-      billData.totalAmount = billData.services.reduce((sum, s) => sum + s.amount, 0)
-      billData.title = 'Appointment Bill'
-      
-      // Add appointment details
-      if (caseData.appointmentDate) {
-        const appointmentDate = new Date(caseData.appointmentDate)
-        billData.appointmentDetails = {
-          date: appointmentDate.toLocaleDateString(),
-          time: appointmentDate.toLocaleTimeString(),
-          day: appointmentDate.toLocaleDateString('en-US', { weekday: 'long' })
+        // Add appointment details from case data
+        if (caseData.appointmentDate) {
+          const appointmentDate = new Date(caseData.appointmentDate)
+          let formattedTime = caseData.appointmentTime || ''
+          if (caseData.appointmentTime) {
+            const timeParts = caseData.appointmentTime.split(':')
+            if (timeParts.length >= 2) {
+              const date = new Date()
+              date.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]))
+              formattedTime = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }
+          }
+          billData.appointmentDetails = {
+            date: appointmentDate.toLocaleDateString(),
+            time: formattedTime,
+            day: appointmentDate.toLocaleDateString('en-US', { weekday: 'long' })
+          }
         }
       }
-    }
 
-    generateBill(billData)
-      .then((bill) => {
-        setPreviewBill(bill)
-        alert(`${billType === 'services' ? 'Services' : 'Appointment'} bill generated successfully!`)
-      })
-      .catch((error) => {
-        alert('Error generating bill: ' + error.message)
-      })
+      const bill = await generateBill(billData)
+      setPreviewBill(bill)
+      alert(`${billType === 'services' ? 'Services' : 'Appointment'} bill generated successfully!`)
+    } catch (error) {
+      alert('Error generating bill: ' + error.message)
+    } finally {
+      setLoadingBill(false)
+    }
   }
 
   const handleViewBills = (caseId) => {
@@ -267,14 +282,15 @@ function RecordsScreen({ cases, generateBill, getBills, doctors }) {
                 }
               }}
               defaultValue=""
+              disabled={loadingBill}
             >
               <option value="" disabled>Generate Bill</option>
               <option value="services">Services Bill (Lab & Pharmacy)</option>
               <option value="appointment">Appointment Bill (Consultation)</option>
             </select>
-            <button type="button" className="secondary-btn" onClick={() => handleViewBills(caseItem.id)}>
+            {/* <button type="button" className="secondary-btn" onClick={() => handleViewBills(caseItem.id)}>
               View Bills
-            </button>
+            </button> */}
           </div>
         )}
       />

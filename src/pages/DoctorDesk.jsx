@@ -1,8 +1,6 @@
 import { useMemo, useState } from 'react'
 import { API_BASE } from '../constants'
 import CaseTable from '../components/CaseTable'
-const API_URL = "https://cms-backend-bjd0.onrender.com";
-
 
 function DoctorDesk({ cases, onUpdate, session, labTests, medicines }) {
   const [filterDay, setFilterDay] = useState('')
@@ -16,6 +14,8 @@ function DoctorDesk({ cases, onUpdate, session, labTests, medicines }) {
   const [editingTestIdx, setEditingTestIdx] = useState({})
   const [newMedSearch, setNewMedSearch] = useState({})
   const [newTestSearch, setNewTestSearch] = useState({})
+  const [updatingPatient, setUpdatingPatient] = useState(null) // prevent double requests
+
   const pending = cases.filter(
     (c) => c.status === 'doctor' && c.doctorName === session.name && (!filterDay || c.appointmentDate === filterDay)
   )
@@ -102,6 +102,100 @@ function DoctorDesk({ cases, onUpdate, session, labTests, medicines }) {
       },
       body: JSON.stringify({ availability: slots }),
     })
+  }
+
+  // Helper: generate an adjustment bill directly via API
+  const generateAdjustmentBill = async (caseId, patientName, oldMeds, newMeds, oldTests, newTests) => {
+    const getPrice = (item) => Number(item.price || 0)
+    
+    // Medicine changes
+    const oldMedMap = new Map(oldMeds.map(m => [m.id || m.name, getPrice(m)]))
+    const newMedMap = new Map(newMeds.map(m => [m.id || m.name, getPrice(m)]))
+    let medDelta = 0
+    for (let [key, price] of newMedMap.entries()) {
+      if (!oldMedMap.has(key)) medDelta += price
+    }
+    for (let [key, price] of oldMedMap.entries()) {
+      if (!newMedMap.has(key)) medDelta -= price
+    }
+    for (let [key, newPrice] of newMedMap.entries()) {
+      const oldPrice = oldMedMap.get(key)
+      if (oldPrice !== undefined && oldPrice !== newPrice) {
+        medDelta += (newPrice - oldPrice)
+      }
+    }
+
+    // Test changes
+    const oldTestMap = new Map(oldTests.map(t => [t.id || t.name, getPrice(t)]))
+    const newTestMap = new Map(newTests.map(t => [t.id || t.name, getPrice(t)]))
+    let testDelta = 0
+    for (let [key, price] of newTestMap.entries()) {
+      if (!oldTestMap.has(key)) testDelta += price
+    }
+    for (let [key, price] of oldTestMap.entries()) {
+      if (!newTestMap.has(key)) testDelta -= price
+    }
+    for (let [key, newPrice] of newTestMap.entries()) {
+      const oldPrice = oldTestMap.get(key)
+      if (oldPrice !== undefined && oldPrice !== newPrice) {
+        testDelta += (newPrice - oldPrice)
+      }
+    }
+
+    const totalDelta = medDelta + testDelta
+    if (totalDelta === 0) return null
+
+    const services = [{
+      name: totalDelta > 0 ? 'Additional charges (prescription/lab changes)' : 'Credit note (prescription/lab changes)',
+      amount: Math.abs(totalDelta)
+    }]
+
+    const billData = {
+      caseId,
+      patientName,
+      doctorName: session.name,
+      doctorId: session.id,
+      billType: 'adjustment',
+      title: totalDelta > 0 ? 'Additional Charges Bill' : 'Credit Note',
+      services,
+      totalAmount: Math.abs(totalDelta),
+      generatedBy: `Dr. ${session.name}`,
+      generatedAt: new Date().toISOString(),
+      note: `Adjustment after doctor's changes`
+    }
+
+    const token = localStorage.getItem('cms_token') || ''
+    const res = await fetch(`${API_BASE}/bills`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(billData),
+    })
+    if (!res.ok) throw new Error('Failed to create adjustment bill')
+    const bill = await res.json()
+    alert(`New ${totalDelta > 0 ? 'bill' : 'credit note'} generated! Amount: PKR ${Math.abs(totalDelta)}. Patient will ${totalDelta > 0 ? 'pay' : 'receive credit'} at reception.`)
+    return bill
+  }
+
+  // Wrapper for onUpdate that also generates bill for changes
+  const updateCaseWithBill = async (caseId, oldCase, newData, oldMeds, oldTests) => {
+    if (updatingPatient === caseId) return
+    setUpdatingPatient(caseId)
+    try {
+      // First update the case
+      await onUpdate(caseId, newData)
+      // Then generate bill for differences (if any)
+      const newMeds = newData.prescriptions ?? oldCase.prescriptions
+      const newTests = newData.recommendedTests ?? oldCase.recommendedTests
+      await generateAdjustmentBill(caseId, oldCase.patientName, oldMeds, newMeds, oldTests, newTests)
+    } catch (err) {
+      console.error(err)
+      alert('Error updating case: ' + err.message)
+    } finally {
+      setUpdatingPatient(null)
+    }
   }
 
   return (
@@ -227,8 +321,11 @@ function DoctorDesk({ cases, onUpdate, session, labTests, medicines }) {
                 <button
                   type="button"
                   className="secondary-btn"
-                  onClick={() => {
-                    onUpdate(c.id, { diagnosis: editingDiagnosis[c.id] ?? c.diagnosis, timelineAction: 'Diagnosis updated', timelineNote: 'Doctor updated diagnosis' })
+                  disabled={updatingPatient === c.id}
+                  onClick={async () => {
+                    const newDiagnosis = editingDiagnosis[c.id] ?? c.diagnosis
+                    if (newDiagnosis === (c.diagnosis || '')) return
+                    await updateCaseWithBill(c.id, c, { diagnosis: newDiagnosis, timelineAction: 'Diagnosis updated', timelineNote: 'Doctor updated diagnosis' }, c.prescriptions || [], c.recommendedTests || [])
                     setEditingDiagnosis({ ...editingDiagnosis, [c.id]: '' })
                   }}
                   style={{ marginTop: '0.5rem' }}
@@ -272,8 +369,11 @@ function DoctorDesk({ cases, onUpdate, session, labTests, medicines }) {
                             <button
                               type="button"
                               className="secondary-btn"
-                              onClick={() => {
-                                onUpdate(c.id, { prescriptions: editingPrescriptions[c.id] || c.prescriptions, timelineAction: 'Medicine updated', timelineNote: `Updated ${med.name}` })
+                              disabled={updatingPatient === c.id}
+                              onClick={async () => {
+                                const oldMeds = c.prescriptions || []
+                                const newMeds = editingPrescriptions[c.id] || c.prescriptions
+                                await updateCaseWithBill(c.id, c, { prescriptions: newMeds, timelineAction: 'Medicine updated', timelineNote: `Updated ${med.name}` }, oldMeds, c.recommendedTests || [])
                                 setEditingMedicineIdx({ ...editingMedicineIdx, [`${c.id}-${idx}`]: false })
                               }}
                               style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}
@@ -297,10 +397,12 @@ function DoctorDesk({ cases, onUpdate, session, labTests, medicines }) {
                         <button
                           type="button"
                           className="secondary-btn"
-                          onClick={() => {
-                            const updated = (editingPrescriptions[c.id] || c.prescriptions || []).filter((_, i) => i !== idx)
-                            onUpdate(c.id, { prescriptions: updated, timelineAction: 'Medicine removed', timelineNote: `Removed ${med.name} from prescription` })
-                            setEditingPrescriptions({ ...editingPrescriptions, [c.id]: updated })
+                          disabled={updatingPatient === c.id}
+                          onClick={async () => {
+                            const oldMeds = c.prescriptions || []
+                            const newMeds = (editingPrescriptions[c.id] || c.prescriptions || []).filter((_, i) => i !== idx)
+                            await updateCaseWithBill(c.id, c, { prescriptions: newMeds, timelineAction: 'Medicine removed', timelineNote: `Removed ${med.name} from prescription` }, oldMeds, c.recommendedTests || [])
+                            setEditingPrescriptions({ ...editingPrescriptions, [c.id]: newMeds })
                           }}
                           style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}
                         >
@@ -326,10 +428,12 @@ function DoctorDesk({ cases, onUpdate, session, labTests, medicines }) {
                         key={m.id}
                         type="button"
                         className="secondary-btn"
-                        onClick={() => {
-                          const updated = [...(editingPrescriptions[c.id] || c.prescriptions || []), { id: m.id, name: m.name, price: m.price }]
-                          onUpdate(c.id, { prescriptions: updated, timelineAction: 'Medicine added', timelineNote: `Added ${m.name} to prescription` })
-                          setEditingPrescriptions({ ...editingPrescriptions, [c.id]: updated })
+                        disabled={updatingPatient === c.id}
+                        onClick={async () => {
+                          const oldMeds = c.prescriptions || []
+                          const newMeds = [...(editingPrescriptions[c.id] || c.prescriptions || []), { id: m.id, name: m.name, price: m.price }]
+                          await updateCaseWithBill(c.id, c, { prescriptions: newMeds, timelineAction: 'Medicine added', timelineNote: `Added ${m.name} to prescription` }, oldMeds, c.recommendedTests || [])
+                          setEditingPrescriptions({ ...editingPrescriptions, [c.id]: newMeds })
                           setNewMedSearch({ ...newMedSearch, [c.id]: '' })
                         }}
                         style={{ padding: '0.5rem', fontSize: '0.85rem' }}
@@ -375,8 +479,11 @@ function DoctorDesk({ cases, onUpdate, session, labTests, medicines }) {
                             <button
                               type="button"
                               className="secondary-btn"
-                              onClick={() => {
-                                onUpdate(c.id, { recommendedTests: editingTests[c.id] || c.recommendedTests, timelineAction: 'Test updated', timelineNote: `Updated ${test.name}` })
+                              disabled={updatingPatient === c.id}
+                              onClick={async () => {
+                                const oldTests = c.recommendedTests || []
+                                const newTests = editingTests[c.id] || c.recommendedTests
+                                await updateCaseWithBill(c.id, c, { recommendedTests: newTests, timelineAction: 'Test updated', timelineNote: `Updated ${test.name}` }, c.prescriptions || [], oldTests)
                                 setEditingTestIdx({ ...editingTestIdx, [`${c.id}-${idx}`]: false })
                               }}
                               style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}
@@ -400,10 +507,12 @@ function DoctorDesk({ cases, onUpdate, session, labTests, medicines }) {
                         <button
                           type="button"
                           className="secondary-btn"
-                          onClick={() => {
-                            const updated = (editingTests[c.id] || c.recommendedTests || []).filter((_, i) => i !== idx)
-                            onUpdate(c.id, { recommendedTests: updated, timelineAction: 'Test removed', timelineNote: `Removed ${test.name} from recommended tests` })
-                            setEditingTests({ ...editingTests, [c.id]: updated })
+                          disabled={updatingPatient === c.id}
+                          onClick={async () => {
+                            const oldTests = c.recommendedTests || []
+                            const newTests = (editingTests[c.id] || c.recommendedTests || []).filter((_, i) => i !== idx)
+                            await updateCaseWithBill(c.id, c, { recommendedTests: newTests, timelineAction: 'Test removed', timelineNote: `Removed ${test.name} from recommended tests` }, c.prescriptions || [], oldTests)
+                            setEditingTests({ ...editingTests, [c.id]: newTests })
                           }}
                           style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}
                         >
@@ -429,10 +538,12 @@ function DoctorDesk({ cases, onUpdate, session, labTests, medicines }) {
                         key={t.id}
                         type="button"
                         className="secondary-btn"
-                        onClick={() => {
-                          const updated = [...(editingTests[c.id] || c.recommendedTests || []), { id: t.id, name: t.name, price: t.price }]
-                          onUpdate(c.id, { recommendedTests: updated, timelineAction: 'Test added', timelineNote: `Added ${t.name} to recommended tests` })
-                          setEditingTests({ ...editingTests, [c.id]: updated })
+                        disabled={updatingPatient === c.id}
+                        onClick={async () => {
+                          const oldTests = c.recommendedTests || []
+                          const newTests = [...(editingTests[c.id] || c.recommendedTests || []), { id: t.id, name: t.name, price: t.price }]
+                          await updateCaseWithBill(c.id, c, { recommendedTests: newTests, timelineAction: 'Test added', timelineNote: `Added ${t.name} to recommended tests` }, c.prescriptions || [], oldTests)
+                          setEditingTests({ ...editingTests, [c.id]: newTests })
                           setNewTestSearch({ ...newTestSearch, [c.id]: '' })
                         }}
                         style={{ padding: '0.5rem', fontSize: '0.85rem' }}
