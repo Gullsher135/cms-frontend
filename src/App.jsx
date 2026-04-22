@@ -1,7 +1,8 @@
 import { ShieldCheck, Stethoscope } from 'lucide-react'
 import { NavLink, Route, Routes, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import './App.css'
-import { ROLE_ROUTES } from './constants'
+import { ROLE_ROUTES, API_BASE } from './constants'
 import useClinicAppState from './hooks/useClinicAppState'
 import LoginScreen from './pages/LoginScreen'
 import Dashboard from './pages/Dashboard'
@@ -41,6 +42,24 @@ function App() {
     generateBill,
     getBills,
   } = useClinicAppState(navigate)
+
+  const [bills, setBills] = useState([])
+
+  // Fetch bills whenever session changes (user logs in)
+  useEffect(() => {
+    const token = localStorage.getItem('cms_token')
+    if (session && token) {
+      fetch(`${API_BASE}/bills`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => res.json())
+        .then((data) => setBills(Array.isArray(data) ? data : []))
+        .catch((err) => console.error('Failed to fetch bills:', err))
+    } else {
+      setBills([])
+    }
+  }, [session])
+
   const allowed = role ? ROLE_ROUTES[role] : []
 
   if (!session) {
@@ -84,7 +103,11 @@ function App() {
       </aside>
       <main className="content">
         <Routes>
-          <Route path="/" element={<Dashboard stats={stats} upcoming={upcoming} />} />
+          {/* ✅ Pass session and bills to Dashboard */}
+          <Route
+            path="/"
+            element={<Dashboard stats={stats} upcoming={upcoming} session={session} bills={bills} />}
+          />
           <Route
             path="/admin"
             element={
@@ -105,7 +128,14 @@ function App() {
             path="/reception"
             element={
               <Gate role={role} route="/reception">
-                <ReceptionDesk cases={cases} setCases={setCases} doctors={doctors} onUpdate={updateCase} generateBill={generateBill} getBills={getBills} />
+                <ReceptionDesk
+                  cases={cases}
+                  setCases={setCases}
+                  doctors={doctors}
+                  onUpdate={updateCase}
+                  generateBill={generateBill}
+                  getBills={getBills}
+                />
               </Gate>
             }
           />
@@ -113,7 +143,13 @@ function App() {
             path="/doctor"
             element={
               <Gate role={role} route="/doctor">
-                <DoctorDesk cases={cases} onUpdate={updateCase} session={session} labTests={labTests} medicines={medicines} />
+                <DoctorDesk
+                  cases={cases}
+                  onUpdate={updateCase}
+                  session={session}
+                  labTests={labTests}
+                  medicines={medicines}
+                />
               </Gate>
             }
           />
@@ -121,7 +157,12 @@ function App() {
             path="/lab"
             element={
               <Gate role={role} route="/lab">
-                <LabDesk cases={cases} onUpdate={updateCase} catalog={labTests} onAddLabTest={onAddLabTest} />
+                <LabDesk
+                  cases={cases}
+                  onUpdate={updateCase}
+                  catalog={labTests}
+                  onAddLabTest={onAddLabTest}
+                />
               </Gate>
             }
           />
@@ -129,11 +170,26 @@ function App() {
             path="/pharmacy"
             element={
               <Gate role={role} route="/pharmacy">
-                <PharmacyDesk cases={cases} onUpdate={updateCase} catalog={medicines} onAddMedicine={onAddMedicine} />
+                <PharmacyDesk
+                  cases={cases}
+                  onUpdate={updateCase}
+                  catalog={medicines}
+                  onAddMedicine={onAddMedicine}
+                />
               </Gate>
             }
           />
-          <Route path="/records" element={<RecordsScreen cases={cases} generateBill={generateBill} getBills={getBills} doctors={doctors} />} />
+          <Route
+            path="/records"
+            element={
+              <RecordsScreen
+                cases={cases}
+                generateBill={generateBill}
+                getBills={getBills}
+                doctors={doctors}
+              />
+            }
+          />
         </Routes>
       </main>
     </div>
