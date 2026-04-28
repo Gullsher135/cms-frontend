@@ -1,6 +1,23 @@
 import { useState, useEffect } from 'react'
 import CaseTable from '../components/CaseTable'
 import { API_BASE } from '../constants'
+import { 
+  Pill, 
+  Plus, 
+  Upload, 
+  Edit2, 
+  Trash2, 
+  Minus, 
+  Plus as PlusIcon, 
+  AlertCircle, 
+  Package, 
+  DollarSign, 
+  ClipboardList, 
+  X, 
+  Save,
+  TrendingUp,
+  TrendingDown
+} from 'lucide-react'
 
 function PharmacyDesk({ cases, onUpdate, catalog, onAddMedicine }) {
   const pending = cases.filter((c) => c.pharmacyStatus === 'pending' || c.status === 'pharmacy')
@@ -249,89 +266,302 @@ function PharmacyDesk({ cases, onUpdate, catalog, onAddMedicine }) {
     }
   }
 
-  return (
-    <section className="form-panel">
-      <h2>Pharmacy Desk</h2>
-      <p>Manage medicine inventory, dispense prescriptions, track stock.</p>
+  // Helper to format currency
+  const formatPKR = (amount) => `PKR ${Number(amount || 0).toLocaleString()}`
 
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-        <button type="button" className="secondary-btn" onClick={() => setShowAddModal(true)}>
-          + Add Medicine
-        </button>
-        <label className="secondary-btn" style={{ cursor: 'pointer' }}>
-          📂 Upload CSV
-          <input type="file" accept=".csv" onChange={handleFileUpload} style={{ display: 'none' }} disabled={uploading} />
-        </label>
-        {uploading && <span>Uploading...</span>}
+  return (
+    <div className="pharmacy-desk-upgraded" style={{ animation: "fadeIn 0.4s ease-out" }}>
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateX(10px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        .pharmacy-desk-upgraded .modern-card {
+          background: white;
+          border-radius: 24px;
+          border: 1px solid #e9edf2;
+          transition: all 0.2s ease;
+        }
+        .pharmacy-desk-upgraded .form-icon-group {
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 16px;
+          padding: 0.5rem 1rem;
+          transition: all 0.2s;
+        }
+        .pharmacy-desk-upgraded .form-icon-group:focus-within {
+          border-color: #0f5ea8;
+          box-shadow: 0 0 0 3px rgba(15, 94, 168, 0.1);
+        }
+        .pharmacy-desk-upgraded .form-icon-group input,
+        .pharmacy-desk-upgraded .form-icon-group select {
+          border: none;
+          background: transparent;
+          flex: 1;
+          outline: none;
+          font-size: 0.9rem;
+          padding: 0.2rem 0;
+        }
+        .modern-button {
+          border: none;
+          border-radius: 40px;
+          padding: 0.6rem 1.2rem;
+          font-weight: 600;
+          font-size: 0.85rem;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .modern-button-primary {
+          background: linear-gradient(105deg, #0f5ea8, #1b76c8);
+          color: white;
+          box-shadow: 0 2px 6px rgba(15, 94, 168, 0.2);
+        }
+        .modern-button-primary:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow: 0 6px 14px rgba(15, 94, 168, 0.25);
+        }
+        .modern-button-secondary {
+          background: #f1f5f9;
+          color: #1e293b;
+          border: 1px solid #e2e8f0;
+        }
+        .modern-button-secondary:hover {
+          background: #e6edf4;
+        }
+        .modern-button-success {
+          background: #10b981;
+          color: white;
+        }
+        .modern-button-success:hover {
+          background: #059669;
+        }
+        .modern-button-outline {
+          background: transparent;
+          border: 1px solid #cbd5e1;
+          color: #334155;
+        }
+        .modern-button-danger {
+          background: #fee2e2;
+          color: #b91c1c;
+        }
+        .modern-button-danger:hover {
+          background: #fecaca;
+        }
+        .medicine-card-modern {
+          background: white;
+          border-radius: 20px;
+          border: 1px solid #e9edf2;
+          padding: 1rem;
+          transition: all 0.2s;
+        }
+        .medicine-card-modern:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+          border-color: #cbd5e1;
+        }
+        .badge-low-stock {
+          background: #fef3c7;
+          color: #d97706;
+          padding: 0.2rem 0.5rem;
+          border-radius: 30px;
+          font-size: 0.7rem;
+          font-weight: 600;
+        }
+        .modal-overlay-modern {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          backdrop-filter: blur(4px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          animation: fadeIn 0.2s ease-out;
+        }
+        .modal-content-modern {
+          background: white;
+          border-radius: 32px;
+          padding: 1.5rem;
+          width: 500px;
+          max-width: 90%;
+          max-height: 85vh;
+          overflow-y: auto;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+          animation: slideIn 0.3s ease-out;
+        }
+        .input-group-modal {
+          display: grid;
+          gap: 0.5rem;
+          margin-bottom: 1rem;
+        }
+        .input-group-modal label {
+          font-weight: 500;
+          font-size: 0.85rem;
+          color: #1e293b;
+        }
+        .input-group-modal input {
+          padding: 0.6rem 1rem;
+          border-radius: 14px;
+          border: 1px solid #e2e8f0;
+          transition: all 0.2s;
+        }
+        .input-group-modal input:focus {
+          outline: none;
+          border-color: #0f5ea8;
+          box-shadow: 0 0 0 3px rgba(15, 94, 168, 0.1);
+        }
+      `}</style>
+
+      {/* Header */}
+      <div className="form-panel" style={{ background: "white", borderRadius: "28px", padding: "1.5rem", marginBottom: "1.5rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
+          <div style={{ background: "#eef2ff", borderRadius: "18px", padding: "0.5rem" }}>
+            <Pill size={28} color="#0f5ea8" />
+          </div>
+          <div>
+            <h2 style={{ margin: 0, fontSize: "1.6rem", fontWeight: 700, background: "linear-gradient(135deg, #0f5ea8, #1b76c8)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
+              Pharmacy Desk
+            </h2>
+            <p style={{ margin: "0.2rem 0 0", color: "#5b6e8c" }}>
+              Manage medicine inventory, dispense prescriptions, track stock levels
+            </p>
+          </div>
+        </div>
       </div>
 
-      <h3>Medicine Inventory</h3>
-      {localCatalog.length === 0 ? (
-        <p className="muted">No medicines in catalog. Add some using the form or CSV.</p>
-      ) : (
-        <div className="catalog-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px,1fr))', gap: '0.75rem', marginBottom: '2rem' }}>
-          {localCatalog.map((med) => (
-            <div key={med._id} className="medicine-card" style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '0.75rem', background: med.quantity <= (med.threshold || 10) ? '#fff3e0' : '#fff' }}>
-              <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{med.name}</div>
-              <div style={{ fontSize: '0.85rem', color: '#555', marginTop: '4px' }}>
-                {med.mg && <span><strong>Strength:</strong> {med.mg} </span>}
-                {med.formula && <span>| <strong>Formula:</strong> {med.formula}</span>}
-              </div>
-              <div style={{ marginTop: '6px' }}>
-                <strong>Price:</strong> PKR {med.price}
-              </div>
-              <div>
-                <strong>Stock:</strong> <span style={{ color: med.quantity <= (med.threshold || 10) ? 'red' : 'green', fontWeight: 'bold' }}>{med.quantity}</span>
-                {med.quantity <= (med.threshold || 10) && <span style={{ marginLeft: '8px', fontSize: '0.75rem', color: '#d32f2f' }}>(Low stock)</span>}
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
-                <button className="secondary-btn" style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem' }} onClick={() => adjustStock(med._id, 1)} disabled={loadingStock}>+1</button>
-                <button className="secondary-btn" style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem' }} onClick={() => adjustStock(med._id, -1)} disabled={med.quantity <= 0 || loadingStock}>-1</button>
-                <button className="secondary-btn" style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem' }} onClick={() => openEditModal(med)}>✏️ Edit</button>
-                <button className="secondary-btn" style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem', color: '#d32f2f' }} onClick={() => deleteMedicine(med._id, med.name)}>🗑️ Delete</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Action Buttons */}
+      <div className="form-panel" style={{ background: "white", borderRadius: "28px", padding: "1rem 1.5rem", marginBottom: "1.5rem", display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+        <button className="modern-button modern-button-primary" onClick={() => setShowAddModal(true)}>
+          <Plus size={16} /> Add Medicine
+        </button>
+        <label className="modern-button modern-button-secondary" style={{ cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.6 : 1 }}>
+          <Upload size={16} /> Upload CSV
+          <input type="file" accept=".csv" onChange={handleFileUpload} style={{ display: 'none' }} disabled={uploading} />
+        </label>
+        {uploading && <span style={{ display: "flex", alignItems: "center", gap: "0.3rem", color: "#0f5ea8" }}><Package size={16} /> Processing...</span>}
+      </div>
 
-      <h3>Pending Prescriptions</h3>
-      <CaseTable
-        cases={pending}
-        actions={(c) => (
-          <>
-            <p className="muted inline-text">Token: {c.token || 'Pending reception token'}</p>
-            <p className="muted inline-text">
-              Rx: {(c.prescriptions || []).map((m) => `${m.name} (${m.price})`).join(', ') || 'No prescription'}
-            </p>
-            <input
-              placeholder="Dispense notes"
-              value={dispenseNote[c.id] || ''}
-              onChange={(e) => setDispenseNote({ ...dispenseNote, [c.id]: e.target.value })}
-            />
-            <button type="button" onClick={() => handleDispense(c)}>
-              Dispense Medicines
-            </button>
-          </>
+      {/* Medicine Inventory */}
+      <div className="form-panel" style={{ background: "white", borderRadius: "28px", padding: "1.5rem", marginBottom: "1.5rem" }}>
+        <h3 style={{ fontSize: "1.2rem", fontWeight: 600, marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <Package size={18} color="#0f5ea8" /> Medicine Inventory
+          <span className="badge-low-stock" style={{ marginLeft: "0.5rem" }}>{localCatalog.length} items</span>
+        </h3>
+        {localCatalog.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "2rem", color: "#5b6e8c" }}>
+            <AlertCircle size={32} style={{ opacity: 0.5, marginBottom: "0.5rem" }} />
+            <p>No medicines in catalog. Add some using the form or CSV.</p>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1rem" }}>
+            {localCatalog.map((med) => {
+              const isLowStock = med.quantity <= (med.threshold || 10)
+              return (
+                <div key={med._id} className="medicine-card-modern" style={{ borderLeft: isLowStock ? `4px solid #f59e0b` : `4px solid #10b981` }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.5rem" }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 600 }}>{med.name}</h4>
+                      <div style={{ fontSize: "0.75rem", color: "#5b6e8c", marginTop: "0.2rem" }}>
+                        {med.mg && <span>{med.mg}</span>}
+                        {med.formula && <span> | {med.formula}</span>}
+                      </div>
+                    </div>
+                    {isLowStock && <span className="badge-low-stock">Low Stock</span>}
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem", fontSize: "0.9rem" }}>
+                    <span><DollarSign size={14} style={{ display: "inline" }} /> {formatPKR(med.price)}</span>
+                    <span><strong>Stock:</strong> <span style={{ color: isLowStock ? "#d97706" : "#10b981", fontWeight: 600 }}>{med.quantity}</span></span>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                    <button className="modern-button modern-button-outline" style={{ padding: "0.3rem 0.8rem" }} onClick={() => adjustStock(med._id, 1)} disabled={loadingStock}>
+                      <TrendingUp size={14} /> +1
+                    </button>
+                    <button className="modern-button modern-button-outline" style={{ padding: "0.3rem 0.8rem" }} onClick={() => adjustStock(med._id, -1)} disabled={med.quantity <= 0 || loadingStock}>
+                      <TrendingDown size={14} /> -1
+                    </button>
+                    <button className="modern-button modern-button-secondary" style={{ padding: "0.3rem 0.8rem" }} onClick={() => openEditModal(med)}>
+                      <Edit2 size={14} /> Edit
+                    </button>
+                    <button className="modern-button modern-button-danger" style={{ padding: "0.3rem 0.8rem" }} onClick={() => deleteMedicine(med._id, med.name)}>
+                      <Trash2 size={14} /> Delete
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         )}
-      />
+      </div>
+
+      {/* Pending Prescriptions */}
+      <div className="form-panel" style={{ background: "white", borderRadius: "28px", padding: "1.5rem", marginBottom: "1.5rem" }}>
+        <h3 style={{ fontSize: "1.2rem", fontWeight: 600, marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <ClipboardList size={18} color="#0f5ea8" /> Pending Prescriptions
+          <span className="badge-low-stock" style={{ marginLeft: "0.5rem", background: "#e0f2fe", color: "#0369a1" }}>{pending.length} pending</span>
+        </h3>
+        <CaseTable
+          cases={pending}
+          actions={(c) => (
+            <div style={{ display: "grid", gap: "0.75rem", marginTop: "0.5rem" }}>
+              <div style={{ background: "#f8fafc", padding: "0.5rem 0.75rem", borderRadius: "12px", fontSize: "0.85rem" }}>
+                <strong>Token:</strong> {c.token || 'Pending reception token'}
+              </div>
+              <div style={{ background: "#f8fafc", padding: "0.5rem 0.75rem", borderRadius: "12px", fontSize: "0.85rem" }}>
+                <strong>Rx:</strong> {(c.prescriptions || []).map((m) => `${m.name} (${formatPKR(m.price)})`).join(', ') || 'No prescription'}
+              </div>
+              <div className="form-icon-group">
+                <ClipboardList size={16} />
+                <input
+                  placeholder="Dispense notes"
+                  value={dispenseNote[c.id] || ''}
+                  onChange={(e) => setDispenseNote({ ...dispenseNote, [c.id]: e.target.value })}
+                />
+              </div>
+              <button className="modern-button modern-button-success" onClick={() => handleDispense(c)}>
+                <Pill size={16} /> Dispense Medicines
+              </button>
+            </div>
+          )}
+        />
+      </div>
+
+      {/* CSV hint */}
+      <div className="form-panel" style={{ background: "white", borderRadius: "28px", padding: "1rem 1.5rem" }}>
+        <p className="muted" style={{ fontSize: "0.8rem", color: "#5b6e8c", margin: 0 }}>
+          📄 CSV format: name, mg, formula, quantity, price (first row as header). Example: Paracetamol,500mg,Acetaminophen,100,25
+        </p>
+      </div>
 
       {/* Add Medicine Modal */}
       {showAddModal && (
-        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="modal-content" style={{ background: '#fff', padding: '1.5rem', borderRadius: '12px', width: '500px', maxWidth: '90%' }}>
-            <h3>Add New Medicine</h3>
-            <div style={{ display: 'grid', gap: '0.75rem', marginTop: '1rem' }}>
-              <div><label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Medicine Name *</label><input value={newMedicine.name} onChange={(e) => setNewMedicine({ ...newMedicine, name: e.target.value })} /></div>
-              <div><label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Strength (mg)</label><input value={newMedicine.mg} onChange={(e) => setNewMedicine({ ...newMedicine, mg: e.target.value })} /></div>
-              <div><label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Formula / Generic Name</label><input value={newMedicine.formula} onChange={(e) => setNewMedicine({ ...newMedicine, formula: e.target.value })} /></div>
-              <div><label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Initial Quantity *</label><input type="number" value={newMedicine.quantity} onChange={(e) => setNewMedicine({ ...newMedicine, quantity: parseInt(e.target.value) || 0 })} /></div>
-              <div><label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Price (PKR) *</label><input type="number" value={newMedicine.price} onChange={(e) => setNewMedicine({ ...newMedicine, price: parseFloat(e.target.value) || 0 })} /></div>
-              <div><label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Low Stock Threshold</label><input type="number" value={newMedicine.threshold} onChange={(e) => setNewMedicine({ ...newMedicine, threshold: parseInt(e.target.value) || 10 })} /></div>
+        <div className="modal-overlay-modern" onClick={() => setShowAddModal(false)}>
+          <div className="modal-content-modern" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <h3 style={{ margin: 0 }}>Add New Medicine</h3>
+              <button onClick={() => setShowAddModal(false)} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={20} /></button>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.5rem' }}>
-              <button type="button" className="secondary-btn" onClick={() => setShowAddModal(false)}>Cancel</button>
-              <button type="button" onClick={handleAddMedicine}>Save Medicine</button>
+            <div className="input-group-modal"><label>Medicine Name *</label><input value={newMedicine.name} onChange={(e) => setNewMedicine({ ...newMedicine, name: e.target.value })} /></div>
+            <div className="input-group-modal"><label>Strength (mg)</label><input value={newMedicine.mg} onChange={(e) => setNewMedicine({ ...newMedicine, mg: e.target.value })} /></div>
+            <div className="input-group-modal"><label>Formula / Generic Name</label><input value={newMedicine.formula} onChange={(e) => setNewMedicine({ ...newMedicine, formula: e.target.value })} /></div>
+            <div className="input-group-modal"><label>Initial Quantity *</label><input type="number" value={newMedicine.quantity} onChange={(e) => setNewMedicine({ ...newMedicine, quantity: parseInt(e.target.value) || 0 })} /></div>
+            <div className="input-group-modal"><label>Price (PKR) *</label><input type="number" value={newMedicine.price} onChange={(e) => setNewMedicine({ ...newMedicine, price: parseFloat(e.target.value) || 0 })} /></div>
+            <div className="input-group-modal"><label>Low Stock Threshold</label><input type="number" value={newMedicine.threshold} onChange={(e) => setNewMedicine({ ...newMedicine, threshold: parseInt(e.target.value) || 10 })} /></div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "1.5rem" }}>
+              <button className="modern-button modern-button-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
+              <button className="modern-button modern-button-primary" onClick={handleAddMedicine}>Save Medicine</button>
             </div>
           </div>
         </div>
@@ -339,28 +569,25 @@ function PharmacyDesk({ cases, onUpdate, catalog, onAddMedicine }) {
 
       {/* Edit Medicine Modal */}
       {showEditModal && editingMedicine && (
-        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="modal-content" style={{ background: '#fff', padding: '1.5rem', borderRadius: '12px', width: '500px', maxWidth: '90%' }}>
-            <h3>Edit Medicine</h3>
-            <div style={{ display: 'grid', gap: '0.75rem', marginTop: '1rem' }}>
-              <div><label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Medicine Name</label><input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} /></div>
-              <div><label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Strength (mg)</label><input value={editForm.mg} onChange={(e) => setEditForm({ ...editForm, mg: e.target.value })} /></div>
-              <div><label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Formula / Generic Name</label><input value={editForm.formula} onChange={(e) => setEditForm({ ...editForm, formula: e.target.value })} /></div>
-              <div><label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Price (PKR)</label><input type="number" value={editForm.price} onChange={(e) => setEditForm({ ...editForm, price: parseFloat(e.target.value) || 0 })} /></div>
-              <div><label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Low Stock Threshold</label><input type="number" value={editForm.threshold} onChange={(e) => setEditForm({ ...editForm, threshold: parseInt(e.target.value) || 10 })} /></div>
+        <div className="modal-overlay-modern" onClick={() => setShowEditModal(false)}>
+          <div className="modal-content-modern" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <h3 style={{ margin: 0 }}>Edit Medicine</h3>
+              <button onClick={() => setShowEditModal(false)} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={20} /></button>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.5rem' }}>
-              <button type="button" className="secondary-btn" onClick={() => setShowEditModal(false)}>Cancel</button>
-              <button type="button" onClick={handleEditMedicine}>Update Medicine</button>
+            <div className="input-group-modal"><label>Medicine Name</label><input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} /></div>
+            <div className="input-group-modal"><label>Strength (mg)</label><input value={editForm.mg} onChange={(e) => setEditForm({ ...editForm, mg: e.target.value })} /></div>
+            <div className="input-group-modal"><label>Formula / Generic Name</label><input value={editForm.formula} onChange={(e) => setEditForm({ ...editForm, formula: e.target.value })} /></div>
+            <div className="input-group-modal"><label>Price (PKR)</label><input type="number" value={editForm.price} onChange={(e) => setEditForm({ ...editForm, price: parseFloat(e.target.value) || 0 })} /></div>
+            <div className="input-group-modal"><label>Low Stock Threshold</label><input type="number" value={editForm.threshold} onChange={(e) => setEditForm({ ...editForm, threshold: parseInt(e.target.value) || 10 })} /></div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "1.5rem" }}>
+              <button className="modern-button modern-button-secondary" onClick={() => setShowEditModal(false)}>Cancel</button>
+              <button className="modern-button modern-button-primary" onClick={handleEditMedicine}>Update Medicine</button>
             </div>
           </div>
         </div>
       )}
-
-      <p className="muted" style={{ marginTop: '1rem', fontSize: '0.8rem' }}>
-        CSV format: name, mg, formula, quantity, price (first row as header). Example: Paracetamol,500mg,Acetaminophen,100,25
-      </p>
-    </section>
+    </div>
   )
 }
 

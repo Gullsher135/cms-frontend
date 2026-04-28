@@ -1,4 +1,4 @@
-import { ShieldCheck, Stethoscope } from 'lucide-react'
+import { ShieldCheck, Stethoscope, LayoutDashboard, UserCog, Calendar, FlaskConical, Pill, FileText, LogOut } from 'lucide-react'
 import { NavLink, Route, Routes, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import './App.css'
@@ -13,6 +13,7 @@ import LabDesk from './pages/LabDesk'
 import PharmacyDesk from './pages/PharmacyDesk'
 import RecordsScreen from './pages/RecordsScreen'
 import Gate from './components/Gate'
+import Logo from './assets/logo.png'
 
 function App() {
   const navigate = useNavigate()
@@ -45,7 +46,6 @@ function App() {
 
   const [bills, setBills] = useState([])
 
-  // Fetch bills whenever session changes (user logs in)
   useEffect(() => {
     const token = localStorage.getItem('cms_token')
     if (session && token) {
@@ -72,38 +72,135 @@ function App() {
     )
   }
 
+  const getUserInitials = () => {
+    if (!session?.name) return 'U'
+    return session.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+  }
+
   return (
     <div className="layout">
+      <style>{`
+        /* Fix sidebar menu spacing between icon and text */
+        .sidebar .menu a {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 0.65rem 0.8rem;
+        }
+        .sidebar .menu a svg {
+          flex-shrink: 0;
+        }
+        .sidebar .menu a span {
+          line-height: 1;
+        }
+        /* Make logo prominent with a light background */
+        .sidebar .brand-icon {
+          background: white;
+          border-radius: 14px;
+          padding: 6px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .sidebar .brand-icon img {
+          width: 28px;
+          height: 28px;
+          object-fit: contain;
+          display: block;
+        }
+        /* Optional: improve logout button spacing */
+        .logout-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+      `}</style>
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-icon">
-            <Stethoscope size={18} />
+            <img src={Logo} alt="Nexone Clinic"/>
           </div>
           <div>
-            <h1>MediCore CMS</h1>
+            <h1>Nexone Clinic</h1>
             <p>{session.name} ({session.role})</p>
           </div>
         </div>
+        
         <nav className="menu">
-          {allowed.includes('/') && <NavLink to="/">Dashboard</NavLink>}
-          {allowed.includes('/admin') && <NavLink to="/admin">Admin Portal</NavLink>}
-          {allowed.includes('/reception') && <NavLink to="/reception">Reception Desk</NavLink>}
-          {allowed.includes('/doctor') && <NavLink to="/doctor">Doctor Desk</NavLink>}
-          {allowed.includes('/lab') && <NavLink to="/lab">LIMS Desk</NavLink>}
-          {allowed.includes('/pharmacy') && <NavLink to="/pharmacy">Pharmacy Desk</NavLink>}
-          {allowed.includes('/records') && <NavLink to="/records">Patient Records</NavLink>}
+          {allowed.includes('/') && (
+            <NavLink to="/">
+              <LayoutDashboard size={18} />
+              <span>Dashboard</span>
+            </NavLink>
+          )}
+          {allowed.includes('/admin') && (
+            <NavLink to="/admin">
+              <UserCog size={18} />
+              <span>Admin Portal</span>
+            </NavLink>
+          )}
+          {allowed.includes('/reception') && (
+            <NavLink to="/reception">
+              <Calendar size={18} />
+              <span>Reception Desk</span>
+            </NavLink>
+          )}
+          {allowed.includes('/doctor') && (
+            <NavLink to="/doctor">
+              <Stethoscope size={18} />
+              <span>Doctor Desk</span>
+            </NavLink>
+          )}
+          {allowed.includes('/lab') && (
+            <NavLink to="/lab">
+              <FlaskConical size={18} />
+              <span>LIMS Desk</span>
+            </NavLink>
+          )}
+          {allowed.includes('/pharmacy') && (
+            <NavLink to="/pharmacy">
+              <Pill size={18} />
+              <span>Pharmacy Desk</span>
+            </NavLink>
+          )}
+          {allowed.includes('/records') && (
+            <NavLink to="/records">
+              <FileText size={18} />
+              <span>Patient Records</span>
+            </NavLink>
+          )}
         </nav>
+
         <div className="security-panel">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+            <div style={{ 
+              width: '32px', 
+              height: '32px', 
+              borderRadius: '50%', 
+              background: 'rgba(255,255,255,0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 'bold',
+              fontSize: '0.8rem'
+            }}>
+              {getUserInitials()}
+            </div>
+            <div style={{ fontSize: '0.8rem' }}>
+              <strong>{session.name}</strong>
+              <p style={{ margin: 0, fontSize: '0.7rem', opacity: 0.8 }}>{session.role} access</p>
+            </div>
+          </div>
           <ShieldCheck size={18} />
           <p>Role-based access. Every action is aligned with user responsibilities.</p>
           <button type="button" className="logout-btn" onClick={logout}>
-            Logout Securely
+            <LogOut size={16} /> Logout Securely
           </button>
         </div>
       </aside>
       <main className="content">
         <Routes>
-          {/* ✅ Pass session and bills to Dashboard */}
           <Route
             path="/"
             element={<Dashboard stats={stats} upcoming={upcoming} session={session} bills={bills} />}
