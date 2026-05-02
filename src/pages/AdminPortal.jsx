@@ -98,6 +98,7 @@ function AdminPortal({
       }
       if (!res.ok) throw new Error(`Delete failed with status ${res.status}`);
       return res.json();
+      window.location.reload();
     })
     .then((data) => {
       // Successful deletion (200 OK)
