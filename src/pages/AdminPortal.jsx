@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState , useEffect} from "react";
 import { Users, UserPlus, CheckCircle, XCircle, Edit2, Trash2, Save, UserCheck, Briefcase, Lock, DollarSign, User } from "lucide-react";
 
 const API_URL = "https://cms-backend-bjd0.onrender.com";
@@ -31,10 +31,15 @@ function AdminPortal({
   });
   const [notification, setNotification] = useState(null);
 
+
+  
+
   const showNotification = (type, message) => {
     setNotification({ type, message });
     setTimeout(() => setNotification(null), 3000);
   };
+
+
 
   const getDoctorId = (doctor) => doctor?._id || doctor?.id;
   const selectedDoctor = doctors.find((d) => getDoctorId(d) === selectedDoctorId);
@@ -77,7 +82,6 @@ function AdminPortal({
       .catch((err) => showNotification("error", err.message));
   };
 
-  // FIXED: No window.location.reload() anywhere
   const handleDoctorDelete = (doctorId, doctorName) => {
     if (!doctorId) {
       showNotification("error", "Invalid doctor ID");
@@ -105,7 +109,7 @@ function AdminPortal({
           showNotification("success", `${doctorName} deleted`);
           onDeleteDoctor(doctorId);
           setSelectedDoctorId(null);
-          if (onRefreshDoctors) onRefreshDoctors(); // refresh list
+          if (onRefreshDoctors) onRefreshDoctors();
         }
         window.location.reload()
       })
@@ -114,6 +118,19 @@ function AdminPortal({
   };
 
   const stopPropagation = (e) => e.stopPropagation();
+
+  useEffect(() => {
+    if (!onRefreshDoctors) return;
+    const interval = setInterval(() => {
+      onRefreshDoctors();
+    }, 10000); // 10 seconds
+    return () => clearInterval(interval);
+  }, [onRefreshDoctors]);
+
+  // const showNotification = (type, message) => {
+  //   setNotification({ type, message });
+  //   setTimeout(() => setNotification(null), 3000);
+  // };
 
   return (
     <section className="admin-portal-upgraded" style={{ animation: "fadeInUp 0.4s ease-out" }}>

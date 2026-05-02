@@ -39,7 +39,7 @@ function Dashboard({ stats = [], upcoming = [], session = null, bills = [] }) {
     return { start, end }
   }
 
-  // Deduplicate bills
+  // Deduplicate bills by _id or id
   const filteredBills = useMemo(() => {
     if (!Array.isArray(bills)) return []
     const { start, end } = getDateRange()
@@ -75,29 +75,33 @@ function Dashboard({ stats = [], upcoming = [], session = null, bills = [] }) {
       }, 0)
   }, [filteredBills, session])
 
-  // Pharmacy earnings: handle credit notes correctly
+  // Pharmacy earnings: use signed totalAmount for adjustment bills, otherwise sum medicines/services
   const pharmacyEarnings = useMemo(() => {
     if (!session || session.role !== 'pharmacy') return 0
     return filteredBills.reduce((sum, bill) => {
-      // Check if this is a medicine-related credit note
-      const title = (bill.title || '').toLowerCase()
-      const isMedicineCredit = title.includes('credit note') && (title.includes('medicine') || title.includes('prescription'))
-      
-      if (isMedicineCredit) {
-        // Directly add the signed totalAmount (negative for credit)
-        return sum + Number(bill.totalAmount || 0)
+      // If it's an adjustment bill (credit note or additional) related to medicines
+      if (bill.billType === 'adjustment') {
+        // Check if it's medicine-related (by title or service description)
+        const isMedicineRelated = 
+          (bill.title && (bill.title.toLowerCase().includes('medicine') || bill.title.toLowerCase().includes('prescription'))) ||
+          (bill.services && bill.services.some(s => s.name?.toLowerCase().includes('medicine')))
+        if (isMedicineRelated) {
+          // Use signed totalAmount (negative for credit notes)
+          return sum + Number(bill.totalAmount || 0)
+        }
+        // Non-medicine adjustment bill – ignore
+        return sum
       }
 
+      // Regular bills (non-adjustment)
       let total = 0
-      // Regular medicines from prescriptions
       if (bill.medicines && Array.isArray(bill.medicines)) {
         total += bill.medicines.reduce((medSum, m) => medSum + (Number(m.price) * (Number(m.quantity) || 1)), 0)
       }
-      // Service items that are not credit notes
       if (bill.services && Array.isArray(bill.services)) {
         bill.services.forEach(service => {
           const name = service.name?.toLowerCase() || ''
-          if ((name.includes('medicine') || name.includes('pharmacy') || name.includes('prescription')) && !name.includes('credit note')) {
+          if (name.includes('medicine') || name.includes('pharmacy') || name.includes('prescription')) {
             total += Number(service.amount || 0)
           }
         })
@@ -107,15 +111,18 @@ function Dashboard({ stats = [], upcoming = [], session = null, bills = [] }) {
     }, 0)
   }, [filteredBills, session])
 
-  // Lab earnings: handle credit notes correctly
+  // Lab earnings: similar logic
   const labEarnings = useMemo(() => {
     if (!session || session.role !== 'lab') return 0
     return filteredBills.reduce((sum, bill) => {
-      const title = (bill.title || '').toLowerCase()
-      const isLabCredit = title.includes('credit note') && (title.includes('lab') || title.includes('test'))
-      
-      if (isLabCredit) {
-        return sum + Number(bill.totalAmount || 0)
+      if (bill.billType === 'adjustment') {
+        const isLabRelated = 
+          (bill.title && (bill.title.toLowerCase().includes('lab') || bill.title.toLowerCase().includes('test'))) ||
+          (bill.services && bill.services.some(s => s.name?.toLowerCase().includes('lab test')))
+        if (isLabRelated) {
+          return sum + Number(bill.totalAmount || 0)
+        }
+        return sum
       }
 
       let total = 0
@@ -125,7 +132,7 @@ function Dashboard({ stats = [], upcoming = [], session = null, bills = [] }) {
       if (bill.services && Array.isArray(bill.services)) {
         bill.services.forEach(service => {
           const name = service.name?.toLowerCase() || ''
-          if ((name.includes('test') || name.includes('lab') || name.includes('pathology')) && !name.includes('credit note')) {
+          if (name.includes('test') || name.includes('lab') || name.includes('pathology')) {
             total += Number(service.amount || 0)
           }
         })
@@ -140,11 +147,9 @@ function Dashboard({ stats = [], upcoming = [], session = null, bills = [] }) {
     if (!session) return 0
     if (session.role === 'admin' || session.role === 'receptionist' || session.role === 'counter') {
       return filteredBills.reduce((sum, bill) => {
-        // Prefer totalAmount if available (includes sign for credit notes)
         if (bill.totalAmount !== undefined && typeof bill.totalAmount === 'number') {
           return sum + bill.totalAmount
         }
-        // Fallback
         let total = 0
         if (bill.doctorFee) total += Number(bill.doctorFee)
         if (bill.medicines) total += bill.medicines.reduce((s, m) => s + (Number(m.price) * (Number(m.quantity) || 1)), 0)

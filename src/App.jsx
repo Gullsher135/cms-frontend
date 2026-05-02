@@ -26,12 +26,12 @@ function App() {
     medicines,
     doctorRequests,
     cases,
+    setCases,
     stats,
     upcoming,
     login,
     logout,
     updateCase,
-    setCases,
     onDoctorRequest,
     onApproveRequest,
     onRejectRequest,
@@ -45,21 +45,6 @@ function App() {
   } = useClinicAppState(navigate)
 
   const [bills, setBills] = useState([])
-
-  const refreshDoctors = async () => {
-  const token = localStorage.getItem("cms_token");
-  if (!token) return;
-  try {
-    const res = await fetch(`${API_BASE}/doctors`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      const data = await res.json();
-    }
-  } catch (err) {
-    console.error("Failed to refresh doctors:", err);
-  }
-};
 
   useEffect(() => {
     const token = localStorage.getItem('cms_token')
@@ -95,7 +80,6 @@ function App() {
   return (
     <div className="layout">
       <style>{`
-        /* Fix sidebar menu spacing between icon and text */
         .sidebar .menu a {
           display: flex;
           align-items: center;
@@ -108,7 +92,6 @@ function App() {
         .sidebar .menu a span {
           line-height: 1;
         }
-        /* Make logo prominent with a light background */
         .sidebar .brand-icon {
           background: white;
           border-radius: 14px;
@@ -124,7 +107,6 @@ function App() {
           object-fit: contain;
           display: block;
         }
-        /* Optional: improve logout button spacing */
         .logout-btn {
           display: inline-flex;
           align-items: center;
@@ -257,6 +239,7 @@ function App() {
               <Gate role={role} route="/doctor">
                 <DoctorDesk
                   cases={cases}
+                  setCases={setCases}                // ✅ added
                   onUpdate={updateCase}
                   session={session}
                   labTests={labTests}
@@ -271,6 +254,7 @@ function App() {
               <Gate role={role} route="/lab">
                 <LabDesk
                   cases={cases}
+                  setCases={setCases}                // ✅ added
                   onUpdate={updateCase}
                   catalog={labTests}
                   onAddLabTest={onAddLabTest}
@@ -284,6 +268,7 @@ function App() {
               <Gate role={role} route="/pharmacy">
                 <PharmacyDesk
                   cases={cases}
+                  setCases={setCases}                // ✅ added
                   onUpdate={updateCase}
                   catalog={medicines}
                   onAddMedicine={onAddMedicine}

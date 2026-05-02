@@ -40,6 +40,8 @@ function PharmacyDesk({ cases, onUpdate, catalog, onAddMedicine }) {
     setLocalCatalog(catalog)
   }, [catalog])
 
+  
+
   const refreshCatalog = async () => {
     const token = localStorage.getItem('cms_token') || ''
     try {

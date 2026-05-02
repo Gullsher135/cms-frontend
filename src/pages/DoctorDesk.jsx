@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState , useEffe} from 'react';
 import { API_BASE, SOFTWARE_BRANDING } from '../constants';
 import CaseTable from '../components/CaseTable';
 import { 
@@ -142,106 +142,92 @@ function DoctorDesk({ cases, onUpdate, session, labTests, medicines }) {
   };
 
   // ========== ADJUSTMENT BILL (SPLIT FOR MEDICINES & TESTS) ==========
-  const generateAdjustmentBill = async (caseId, patientName, oldMeds, newMeds, oldTests, newTests) => {
-    const getPrice = (item) => Number(item.price || 0);
-    const bills = [];
+  // ========== ADJUSTMENT BILL WITH DETAILED ITEMS (FIXED) ==========
+const generateAdjustmentBill = async (caseId, patientName, oldMeds, newMeds, oldTests, newTests) => {
+  const getPrice = (item) => Number(item.price || 0);
+  const services = [];
+  let totalAmount = 0;
 
-    // Medicine changes
-    const oldMedMap = new Map(oldMeds.map(m => [m.id || m.name, getPrice(m)]));
-    const newMedMap = new Map(newMeds.map(m => [m.id || m.name, getPrice(m)]));
-    let medDelta = 0;
-    for (let [key, price] of newMedMap.entries()) {
-      if (!oldMedMap.has(key)) medDelta += price;
-    }
-    for (let [key, price] of oldMedMap.entries()) {
-      if (!newMedMap.has(key)) medDelta -= price;
-    }
-    for (let [key, newPrice] of newMedMap.entries()) {
-      const oldPrice = oldMedMap.get(key);
-      if (oldPrice !== undefined && oldPrice !== newPrice) {
-        medDelta += (newPrice - oldPrice);
-      }
-    }
-
-    // Test changes
-    const oldTestMap = new Map(oldTests.map(t => [t.id || t.name, getPrice(t)]));
-    const newTestMap = new Map(newTests.map(t => [t.id || t.name, getPrice(t)]));
-    let testDelta = 0;
-    for (let [key, price] of newTestMap.entries()) {
-      if (!oldTestMap.has(key)) testDelta += price;
-    }
-    for (let [key, price] of oldTestMap.entries()) {
-      if (!newTestMap.has(key)) testDelta -= price;
-    }
-    for (let [key, newPrice] of newTestMap.entries()) {
-      const oldPrice = oldTestMap.get(key);
-      if (oldPrice !== undefined && oldPrice !== newPrice) {
-        testDelta += (newPrice - oldPrice);
-      }
-    }
-
-    if (medDelta !== 0) {
-      const medBillAmount = medDelta;
-      const medBillData = {
-        caseId,
-        patientName,
-        doctorName: session.name,
-        doctorId: session.id,
-        billType: 'adjustment',
-        title: medDelta > 0 ? 'Additional Charges Bill (Medicines)' : 'Credit Note (Medicines)',
-        services: [{ name: medDelta > 0 ? 'Additional charges (prescription changes)' : 'Credit note (prescription changes)', amount: Math.abs(medBillAmount) }],
-        totalAmount: medBillAmount,
-        generatedBy: `Dr. ${session.name}`,
-        generatedAt: new Date().toISOString(),
-        note: `Medicine adjustment: ${medDelta > 0 ? 'added' : 'removed'} value ${Math.abs(medBillAmount)}`
-      };
-      const token = localStorage.getItem('cms_token') || '';
-      const res = await fetch(`${API_BASE}/bills`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(medBillData),
-      });
-      if (!res.ok) throw new Error('Failed to create medicine adjustment bill');
-      const bill = await res.json();
-      bills.push(bill);
-    }
-
-    if (testDelta !== 0) {
-      const testBillAmount = testDelta;
-      const testBillData = {
-        caseId,
-        patientName,
-        doctorName: session.name,
-        doctorId: session.id,
-        billType: 'adjustment',
-        title: testDelta > 0 ? 'Additional Charges Bill (Lab Tests)' : 'Credit Note (Lab Tests)',
-        services: [{ name: testDelta > 0 ? 'Additional charges (lab test changes)' : 'Credit note (lab test changes)', amount: Math.abs(testBillAmount) }],
-        totalAmount: testBillAmount,
-        generatedBy: `Dr. ${session.name}`,
-        generatedAt: new Date().toISOString(),
-        note: `Lab test adjustment: ${testDelta > 0 ? 'added' : 'removed'} value ${Math.abs(testBillAmount)}`
-      };
-      const token = localStorage.getItem('cms_token') || '';
-      const res = await fetch(`${API_BASE}/bills`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(testBillData),
-      });
-      if (!res.ok) throw new Error('Failed to create test adjustment bill');
-      const bill = await res.json();
-      bills.push(bill);
-    }
-
-    if (bills.length === 0) return null;
-    if (bills.length === 1) {
-      const bill = bills[0];
-      const action = bill.totalAmount > 0 ? 'additional bill' : 'credit note';
-      alert(`New ${action} created! Amount: PKR ${Math.abs(bill.totalAmount)}. Patient balance will ${bill.totalAmount > 0 ? 'increase' : 'decrease'} by this amount.`);
-    } else {
-      alert(`Created ${bills.length} adjustment bills. Check billing records for details.`);
-    }
-    return bills;
+  const addService = (description, amount) => {
+    if (amount === 0) return;
+    services.push({ name: description, amount: Math.abs(amount) });
+    totalAmount += amount;
   };
+
+  // Medicine changes: map key = medicine name
+  const oldMedMap = new Map(oldMeds.map(m => [m.name, getPrice(m)]));
+  const newMedMap = new Map(newMeds.map(m => [m.name, getPrice(m)]));
+
+  for (let [name, price] of newMedMap.entries()) {
+    if (!oldMedMap.has(name)) {
+      addService(`➕ Added medicine: ${name}`, price);
+    }
+  }
+  for (let [name, price] of oldMedMap.entries()) {
+    if (!newMedMap.has(name)) {
+      addService(`➖ Removed medicine: ${name}`, -price);
+    }
+  }
+  for (let [name, newPrice] of newMedMap.entries()) {
+    const oldPrice = oldMedMap.get(name);
+    if (oldPrice !== undefined && oldPrice !== newPrice) {
+      const diff = newPrice - oldPrice;
+      const action = diff > 0 ? '⬆️ Increased' : '⬇️ Decreased';
+      addService(`${action} medicine ${name} price`, diff);
+    }
+  }
+
+  // Lab test changes: map key = test name
+  const oldTestMap = new Map(oldTests.map(t => [t.name, getPrice(t)]));
+  const newTestMap = new Map(newTests.map(t => [t.name, getPrice(t)]));
+
+  for (let [name, price] of newTestMap.entries()) {
+    if (!oldTestMap.has(name)) {
+      addService(`➕ Added lab test: ${name}`, price);
+    }
+  }
+  for (let [name, price] of oldTestMap.entries()) {
+    if (!newTestMap.has(name)) {
+      addService(`➖ Removed lab test: ${name}`, -price);
+    }
+  }
+  for (let [name, newPrice] of newTestMap.entries()) {
+    const oldPrice = oldTestMap.get(name);
+    if (oldPrice !== undefined && oldPrice !== newPrice) {
+      const diff = newPrice - oldPrice;
+      const action = diff > 0 ? '⬆️ Increased' : '⬇️ Decreased';
+      addService(`${action} lab test ${name} price`, diff);
+    }
+  }
+
+  if (services.length === 0) return null;
+
+  const billData = {
+    caseId,
+    patientName,
+    doctorName: session.name,
+    doctorId: session.id,
+    billType: 'adjustment',
+    title: totalAmount > 0 ? 'Additional Charges Bill' : 'Credit Note',
+    services,                         // Now shows detailed descriptions
+    totalAmount,
+    generatedBy: `Dr. ${session.name}`,
+    generatedAt: new Date().toISOString(),
+    note: `Adjustment after doctor's changes`
+  };
+
+  const token = localStorage.getItem('cms_token') || '';
+  const res = await fetch(`${API_BASE}/bills`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(billData),
+  });
+  if (!res.ok) throw new Error('Failed to create adjustment bill');
+  const bill = await res.json();
+  const action = totalAmount > 0 ? 'additional bill' : 'credit note';
+  alert(`New ${action} created! Amount: PKR ${Math.abs(totalAmount)}. Patient balance will ${totalAmount > 0 ? 'increase' : 'decrease'} by this amount.`);
+  return bill;
+};
 
   const updateCaseWithBill = async (caseId, oldCase, newData, oldMeds, oldTests) => {
     if (updatingPatient === caseId) return;

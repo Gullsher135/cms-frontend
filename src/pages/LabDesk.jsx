@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState , useEffect} from 'react'
 import CaseTable from '../components/CaseTable'
 import { 
   FlaskConical, 
@@ -13,10 +13,14 @@ import {
   FileText
 } from 'lucide-react'
 
+
+
 function LabDesk({ cases, onUpdate, catalog, onAddLabTest }) {
   const pending = cases.filter((c) => c.labStatus === 'pending' || c.labStatus === 'in_progress')
   const [name, setName] = useState('')
   const [price, setPrice] = useState('')
+
+  
 
   // Helper to format currency
   const formatPKR = (amount) => `PKR ${Number(amount || 0).toLocaleString()}`
