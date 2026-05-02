@@ -11,6 +11,7 @@ function AdminPortal({
   onAddDoctor,
   onUpdateDoctor,
   onDeleteDoctor,
+  onRefreshDoctors,
 }) {
   const [newDoctor, setNewDoctor] = useState({
     fullName: "",
@@ -93,6 +94,7 @@ function AdminPortal({
           showNotification("info", `${doctorName} already deleted`);
           onDeleteDoctor(doctorId);
           setSelectedDoctorId(null);
+          if (onRefreshDoctors) onRefreshDoctors(); // refresh list
           return;
         }
         if (!res.ok) throw new Error(`Delete failed with status ${res.status}`);
@@ -103,6 +105,7 @@ function AdminPortal({
           showNotification("success", `${doctorName} deleted`);
           onDeleteDoctor(doctorId);
           setSelectedDoctorId(null);
+          if (onRefreshDoctors) onRefreshDoctors(); // refresh list
         }
       })
       .catch((err) => showNotification("error", err.message));

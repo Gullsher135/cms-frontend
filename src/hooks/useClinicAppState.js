@@ -181,7 +181,12 @@ function useClinicAppState(navigate) {
     onRejectRequest: (requestId) => api(`/admin/doctor-requests/${requestId}`, { method: 'DELETE' }).then(() => loadAll('admin')),
     onAddDoctor: (doctorAccount) => api('/doctors', { method: 'POST', body: JSON.stringify(doctorAccount) }).then(() => loadAll('admin')),
     onUpdateDoctor: (doctorId, patch) => api(`/doctors/${doctorId}`, { method: 'PATCH', body: JSON.stringify(patch) }).then(() => loadAll('admin')),
-    onDeleteDoctor: (doctorId) => api(`/doctors/${doctorId}`, { method: 'DELETE' }).then(() => loadAll('admin')),
+    onDeleteDoctor: (doctorId) => 
+  api(`/doctors/${doctorId}`, { method: 'DELETE' })
+    .then(() => {
+      setUsers(prev => prev.filter(u => u.id !== doctorId));
+      return loadAll('admin');
+    }),
     onAddLabTest: (payload) => api('/catalog/lab-tests', { method: 'POST', body: JSON.stringify(payload) }).then(() => loadAll(role || '')),
     onAddMedicine: (payload) => api('/catalog/medicines', { method: 'POST', body: JSON.stringify(payload) }).then(() => loadAll(role || '')),
     generateBill: (billData) => api('/bills', { method: 'POST', body: JSON.stringify(billData) }),

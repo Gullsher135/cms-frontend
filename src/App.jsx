@@ -46,6 +46,21 @@ function App() {
 
   const [bills, setBills] = useState([])
 
+  const refreshDoctors = async () => {
+  const token = localStorage.getItem("cms_token");
+  if (!token) return;
+  try {
+    const res = await fetch(`${API_BASE}/doctors`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+    }
+  } catch (err) {
+    console.error("Failed to refresh doctors:", err);
+  }
+};
+
   useEffect(() => {
     const token = localStorage.getItem('cms_token')
     if (session && token) {
