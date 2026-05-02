@@ -77,26 +77,43 @@ function AdminPortal({
   };
 
   const handleDoctorDelete = (doctorId, doctorName) => {
-    if (!doctorId) {
-      showNotification("error", "Invalid doctor ID");
-      return;
-    }
-    const token = localStorage.getItem("cms_token");
-    fetch(`${API_URL}/api/doctors/${doctorId}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
+  if (!doctorId) {
+    showNotification("error", "Invalid doctor ID");
+    return;
+  }
+
+  const token = localStorage.getItem("cms_token");
+  fetch(`${API_URL}/api/doctors/${doctorId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  })
+    .then((res) => {
+      if (res.status === 404) {
+        // Doctor already gone – still refresh UI
+        showNotification("info", `${doctorName} already deleted`);
+        onDeleteDoctor(doctorId);
+        setSelectedDoctorId(null);
+        window.location.reload();
+        return;
+      }
+      if (!res.ok) throw new Error(`Delete failed with status ${res.status}`);
+      return res.json();
     })
-      .then((res) => {
-        if (!res.ok) throw new Error("Delete failed");
-        return res.json();
-      })
-      .then(() => {
+    .then((data) => {
+      // Successful deletion (200 OK)
+      if (data && data.message !== undefined) {
         showNotification("success", `${doctorName} deleted`);
         onDeleteDoctor(doctorId);
-        if (selectedDoctorId === doctorId) setSelectedDoctorId(null);
-      })
-      .catch((err) => showNotification("error", err.message));
-  };
+        setSelectedDoctorId(null);
+        window.location.reload();
+      }
+    })
+    .catch((err) => {
+      showNotification("error", err.message);
+      // Optionally reload anyway to sync state
+      // window.location.reload();
+    });
+};
 
   const stopPropagation = (e) => e.stopPropagation();
 
