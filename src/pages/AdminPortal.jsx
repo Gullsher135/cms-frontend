@@ -99,7 +99,6 @@ function AdminPortal({
         }
         if (!res.ok) throw new Error(`Delete failed with status ${res.status}`);
         return res.json();
-        window.location.reload()
       })
       .then((data) => {
         if (data && data.message !== undefined) {
@@ -108,8 +107,10 @@ function AdminPortal({
           setSelectedDoctorId(null);
           if (onRefreshDoctors) onRefreshDoctors(); // refresh list
         }
+        window.location.reload()
       })
       .catch((err) => showNotification("error", err.message));
+      
   };
 
   const stopPropagation = (e) => e.stopPropagation();
